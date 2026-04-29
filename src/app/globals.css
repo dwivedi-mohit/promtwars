@@ -1,0 +1,133 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap');
+@import "./components.css";
+
+:root {
+  --bg-base: #050505;
+  --bg-surface: #0a0a0a;
+  --bg-elevated: #121212;
+  --bg-hover: #1c1c1c;
+  
+  --border-dim: #1f1f1f;
+  --border-active: #333333;
+  
+  --text-main: #fafafa;
+  --text-muted: #a1a1aa;
+  --text-faint: #52525b;
+  
+  --accent: #ffffff;
+  
+  --font-sans: 'Inter', sans-serif;
+  --font-display: 'Outfit', sans-serif;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-base);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  background-image: radial-gradient(circle at 50% 0%, #171717 0%, transparent 60%),
+                    url('data:image/svg+xml;utf8,<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><filter id="noiseFilter"><feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23noiseFilter)" opacity="0.03"/></svg>');
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-active); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-faint); }
+
+.container {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* Base structural cards for the bento layout */
+.bento-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-dim);
+  border-radius: 24px;
+  padding: 32px;
+  transition: border-color 0.3s ease;
+}
+
+.bento-card:hover {
+  border-color: var(--border-active);
+}
+
+.button-primary {
+  background: var(--text-main);
+  color: var(--bg-base);
+  border: none;
+  border-radius: 99px;
+  padding: 12px 24px;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: transform 0.2s, opacity 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.button-primary:hover {
+  opacity: 0.9;
+  transform: scale(0.98);
+}
+.button-primary:active {
+  transform: scale(0.95);
+}
+
+.button-outline {
+  background: transparent;
+  color: var(--text-main);
+  border: 1px solid var(--border-active);
+  border-radius: 99px;
+  padding: 12px 24px;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.button-outline:hover {
+  background: var(--bg-hover);
+}
+
+.icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-dim);
+  border-radius: 12px;
+  width: 48px;
+  height: 48px;
+  color: var(--text-main);
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+@keyframes fadeIn {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
