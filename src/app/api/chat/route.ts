@@ -16,90 +16,160 @@ RULES:
 
 You are warm, encouraging, and empowering. Your goal is to make every citizen feel confident about participating in democracy.`;
 
+// Simple in-memory rate limiter (per IP, 20 requests per minute)
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT = 20;
+const RATE_WINDOW_MS = 60_000;
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    return true;
+  }
+
+  if (entry.count >= RATE_LIMIT) return false;
+
+  entry.count++;
+  return true;
+}
+
+function sanitizeInput(input: string): string {
+  // Remove HTML tags and limit length to prevent prompt injection
+  return input
+    .replace(/<[^>]*>/g, "")
+    .replace(/[<>]/g, "")
+    .trim()
+    .slice(0, 1000);
+}
+
 export async function POST(req: NextRequest) {
   try {
+    // Rate limiting
+    const ip =
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+      req.headers.get("x-real-ip") ??
+      "unknown";
+
+    if (!checkRateLimit(ip)) {
+      return NextResponse.json(
+        { error: "Too many requests. Please wait a moment before trying again." },
+        { status: 429, headers: { "Retry-After": "60" } }
+      );
+    }
+
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ error: "API key not configured." }, { status: 500 });
+      return NextResponse.json(
+        { error: "Service temporarily unavailable. Please try again later." },
+        { status: 503 }
+      );
     }
 
-    const { message, history } = await req.json();
+    const body = await req.json();
+    const message = sanitizeInput(body.message ?? "");
+    const history: Array<{ role: string; content: string }> = Array.isArray(body.history)
+      ? body.history
+      : [];
 
-    // Construct contents from history
-    const contents: any[] = [];
-    if (Array.isArray(history)) {
-      history.slice(-10).forEach((m: any) => {
-        contents.push({
-          role: m.role === 'assistant' ? 'model' : 'user',
-          parts: [{ text: m.content }]
-        });
-      });
+    if (!message) {
+      return NextResponse.json(
+        { error: "Message cannot be empty." },
+        { status: 400 }
+      );
     }
-    
-    // Add current message
-    contents.push({
-      role: 'user',
-      parts: [{ text: message }]
+
+    // Construct contents from validated history
+    const contents: Array<{ role: string; parts: Array<{ text: string }> }> = [];
+
+    history.slice(-10).forEach((m) => {
+      const role = m.role === "assistant" ? "model" : "user";
+      const text = sanitizeInput(m.content ?? "");
+      if (text) {
+        contents.push({ role, parts: [{ text }] });
+      }
     });
-    
+
+    contents.push({ role: "user", parts: [{ text: message }] });
+
+    const requestBody = {
+      contents,
+      system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 2048,
+        topP: 0.95,
+        topK: 40,
+      },
+    };
+
+    // Primary: Gemini 2.5 Flash
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          contents: contents,
-          system_instruction: {
-            parts: [{ text: SYSTEM_PROMPT }]
-          },
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 2048,
-            topP: 0.95,
-            topK: 40
-          },
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody),
       }
     );
 
     const data = await response.json();
 
     if (!response.ok) {
-      // Fallback to Flash-Lite if Flash fails or hits quota
+      // Fallback: Gemini 2.5 Flash Lite
       if (response.status === 404 || response.status === 429) {
         const fallbackResponse = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ 
-              contents: contents,
-              system_instruction: {
-                parts: [{ text: SYSTEM_PROMPT }]
-              }
-            }),
+            body: JSON.stringify(requestBody),
           }
         );
         const fallbackData = await fallbackResponse.json();
         if (fallbackResponse.ok) {
-          const text = fallbackData.candidates?.[0]?.content?.parts?.[0]?.text;
-          return NextResponse.json({ reply: text });
+          const text =
+            fallbackData.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+          return NextResponse.json(
+            { reply: text },
+            {
+              headers: {
+                "Cache-Control": "no-store",
+                "X-Content-Type-Options": "nosniff",
+              },
+            }
+          );
         }
       }
-      
-      console.error("Gemini API Error:", data);
-      return NextResponse.json({ 
-        error: `Gemini API Error: ${data.error?.message || response.statusText}` 
-      }, { status: response.status });
+
+      console.error("Gemini API Error:", data?.error?.message);
+      return NextResponse.json(
+        { error: `AI service error. Please try again.` },
+        { status: 502 }
+      );
     }
 
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "I'm sorry, I couldn't generate a response.";
+    const text =
+      data.candidates?.[0]?.content?.parts?.[0]?.text ??
+      "I'm sorry, I couldn't generate a response. Please try again.";
 
-    return NextResponse.json({ reply: text });
+    return NextResponse.json(
+      { reply: text },
+      {
+        headers: {
+          "Cache-Control": "no-store",
+          "X-Content-Type-Options": "nosniff",
+        },
+      }
+    );
   } catch (err: unknown) {
-    console.error("Internal Server Error:", err);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error("Internal Server Error:", message);
+    return NextResponse.json(
+      { error: "Internal server error. Please try again later." },
+      { status: 500 }
+    );
   }
 }
