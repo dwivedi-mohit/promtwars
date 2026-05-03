@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://promtwars.vercel.app/sitemap.xml

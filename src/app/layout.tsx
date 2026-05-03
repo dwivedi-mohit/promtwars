@@ -6,6 +6,7 @@ import Script from "next/script";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://promtwars.vercel.app"),
   title: "ElectSmart – AI Election Guide",
   description:
     "An interactive AI-powered assistant to help citizens understand the election process, timelines, voter registration, and voting steps clearly and confidently.",
@@ -22,6 +23,12 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "ElectSmart" }],
   robots: { index: true, follow: true },
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "ElectSmart",
+  },
   openGraph: {
     title: "ElectSmart – AI Election Guide",
     description:
@@ -29,6 +36,7 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_IN",
     siteName: "ElectSmart",
+    url: "https://promtwars.vercel.app",
   },
   twitter: {
     card: "summary_large_image",
@@ -36,7 +44,6 @@ export const metadata: Metadata = {
     description:
       "AI-powered civic assistant for Indian elections. Know your rights, registration process, and voting timeline.",
   },
-  viewport: "width=device-width, initial-scale=1",
   themeColor: "#050505",
 };
 
