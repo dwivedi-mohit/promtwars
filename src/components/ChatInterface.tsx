@@ -19,8 +19,18 @@ const SUGGESTED = [
 
 function formatResponse(text: string) {
   return text
+    // Bold
     .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-    .replace(/\n\n/g, "</p><p>")
+    // H3 headings
+    .replace(/^### (.*?)$/gm, "<strong style='font-size:1rem;display:block;margin:12px 0 4px'>$1</strong>")
+    // H2 headings
+    .replace(/^## (.*?)$/gm, "<strong style='font-size:1.05rem;display:block;margin:14px 0 6px'>$1</strong>")
+    // Numbered lists
+    .replace(/^\d+\.\s+(.*)/gm, "<li style='margin-left:16px;list-style:decimal;margin-bottom:4px'>$1</li>")
+    // Bullet points (* or -)
+    .replace(/^[\*\-]\s+(.*)/gm, "<li style='margin-left:16px;margin-bottom:4px'>$1</li>")
+    // Paragraphs
+    .replace(/\n\n/g, "</p><p style='margin-bottom:10px'>")
     .replace(/\n/g, "<br/>");
 }
 

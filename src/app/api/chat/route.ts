@@ -25,22 +25,10 @@ export async function POST(req: NextRequest) {
 
     const { message, history } = await req.json();
 
-    // The most robust method: Prepend the persona instructions to the conversation history.
-    // This avoids all "Unknown Field" errors across different API versions.
-    const contents = [
-      {
-        role: 'user',
-        parts: [{ text: "Context & Persona: " + SYSTEM_PROMPT + "\n\nUser: Hello, who are you?" }]
-      },
-      {
-        role: 'model',
-        parts: [{ text: "Hello! I am ElectSmart, your dedicated AI Election Guide. I'm here to help you navigate the voting process, registration, and everything in between. How can I assist you today?" }]
-      }
-    ];
-    
-    // Add history
+    // Construct contents from history
+    const contents: any[] = [];
     if (Array.isArray(history)) {
-      history.slice(-6).forEach(m => {
+      history.slice(-10).forEach((m: any) => {
         contents.push({
           role: m.role === 'assistant' ? 'model' : 'user',
           parts: [{ text: m.content }]
@@ -55,7 +43,7 @@ export async function POST(req: NextRequest) {
     });
     
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: {
@@ -63,9 +51,14 @@ export async function POST(req: NextRequest) {
         },
         body: JSON.stringify({
           contents: contents,
+          system_instruction: {
+            parts: [{ text: SYSTEM_PROMPT }]
+          },
           generationConfig: {
             temperature: 0.7,
             maxOutputTokens: 2048,
+            topP: 0.95,
+            topK: 40
           },
         }),
       }
@@ -74,14 +67,19 @@ export async function POST(req: NextRequest) {
     const data = await response.json();
 
     if (!response.ok) {
-      // If 1.5 fails, try 2.5 as a secondary fallback
-      if (response.status === 404) {
+      // Fallback to Flash-Lite if Flash fails or hits quota
+      if (response.status === 404 || response.status === 429) {
         const fallbackResponse = await fetch(
-          `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ contents: contents }),
+            body: JSON.stringify({ 
+              contents: contents,
+              system_instruction: {
+                parts: [{ text: SYSTEM_PROMPT }]
+              }
+            }),
           }
         );
         const fallbackData = await fallbackResponse.json();

@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const apiKey = "AIzaSyBSW7EfFC6d4Pj-9JaxcSvLAPQ2teHDyAo";
+const apiKey = process.env.GEMINI_API_KEY || "YOUR_API_KEY_HERE";
 const genAI = new GoogleGenerativeAI(apiKey);
 
 async function run() {
